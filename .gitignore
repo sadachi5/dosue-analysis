@@ -1,0 +1,30 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# backup files
+~*
+*.swp
+*~
+
+# temporary files
+aho*
+
+# data/figure/output directory
+data/
+figure/
+output/
+
+# data files
+*.dat
+*.npz
+*.out
+*.pdf
+*.png
+
+
+

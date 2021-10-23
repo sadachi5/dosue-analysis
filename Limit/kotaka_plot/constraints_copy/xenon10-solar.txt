@@ -1,0 +1,5 @@
+# xenon10-solar pick up from 2003.13144 (FUNK)
+# eV, chi
+1.03e-4 1.58e-8
+5.47  3.28e-13
+20 3.28e-13 # escape line
