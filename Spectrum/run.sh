@@ -31,4 +31,8 @@ phi=6
 # chi = 0
 #python3 spectrum.py -o 'dosue-k_c0_n1000.pdf' --test 0 -b '0.5e+3,1.e+3,5.e+3,10.e+3,50.e+3,100.e+3' -n 1000 -c '0.' -T 130 --gainDB 65 -t 60 -f $freq -A $phi
 #python3 spectrum.py -o 'dosue-k_c0_n1000_fineBW.pdf' --test 0 -b '0.1e+3,0.2e+3,0.5e+3,0.75e+3,1.e+3' -n 1000 -c '0.' -T 130 --gainDB 65 -t 60 -f $freq -A $phi
-python3 spectrum.py -o 'dosue-k_c0_n1000_many.pdf' --test 0 -b '0.1e+3,0.5e+3,0.75e+3,1.e+3,3.e+3,5.e+3,7.e+3,10.e+3,50.e+3,100.e+3' -n 1000 -c '1e-9' -T 130 --gainDB 65 -t 60 -f $freq -A $phi
+#python3 spectrum.py -o 'dosue-k_c0_n1000_many.pdf' --test 0 -b '0.1e+3,0.5e+3,0.75e+3,1.e+3,3.e+3,5.e+3,7.e+3,10.e+3,50.e+3,100.e+3' -n 1000 -c '1e-9' -T 130 --gainDB 65 -t 60 -f $freq -A $phi
+
+
+#python3 spectrum.py -o 'aho.pdf' --test 0 -b '0.3e+3' -n 1 -c '0.' -T 130 --gainDB 65 -t 60 -f $freq -A $phi -v 1
+python3 spectrum.py -o 'aho2.pdf' --test 0 -b '0.3e+3' -n 1 -c '0.' -T 130 --gainDB 65 -t 60 -f $freq -A $phi --rebin 10 -v 1

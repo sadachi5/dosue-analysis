@@ -19,6 +19,8 @@ aho*
 data/
 figure/
 output/
+Y-factor_USB/data/
+Y-factor_USB/output/
 
 # data files
 *.dat

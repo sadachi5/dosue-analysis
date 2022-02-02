@@ -67,6 +67,24 @@ def calc_P_DP(chi, A_eff, rho_CDM=0.39, alpha=1./np.sqrt(3.)):
 def calc_noise(T, d_nu, t):
     return np.sqrt(2.) * k_B*T*d_nu / np.sqrt(d_nu * t); # J*Hz = J/sec = W
 
+def calc_rebin(rebin, y, iserr=False):
+    if rebin>1:
+        new_nbin = (int)(len(y)/rebin)
+        # ignore several bins in the end of array, which are the remainders after dividing by 'rebin'
+        yEachRebins = y[:new_nbin*rebin]; 
+        yEachRebins = yEachRebins.reshape(new_nbin, rebin);
+        if not iserr :
+            yRebin = np.mean(yEachRebins, axis=1);
+        else :
+            #print(f'rebin = {rebin}');
+            #print(f'yEachRebins = {yEachRebins}');
+            yRebin = np.sqrt(np.sum(yEachRebins*yEachRebins, axis=1))/rebin;# sum{(err_i)^2}/N
+            #print(f'yRebin = {yRebin}');
+            pass;
+        return yRebin;
+    else:
+        return y;
+
 def create_spectrum(
         chi  = 2.e-10, # kumodes = 2.e-10
         T_noise = 10, # [K] System temperature
@@ -74,8 +92,9 @@ def create_spectrum(
         time = 60., # [sec] 1min
         freq_0 = 20.e+9, # [Hz] peak position
         freq_binwidth = 5.e+3, # [Hz] frequency bin width
+        rebin = 1,
         A_eff= (6.*1.e-2/2.)**2.*np.pi, # [m^2]
-        doPlot=True, outname='spectrum.pdf', verbosity=1):
+        doPlot=True, outdir='', outname='spectrum.pdf', verbosity=1):
 
     # Prepare frequency array
     nfreq_half = (int)((freq_0*1e-6*10.)/freq_binwidth); # determine the fit range
@@ -120,6 +139,7 @@ def create_spectrum(
     white_noise = np.random.normal(0., noise, nfreq);
     v_noise = np.sqrt(abs(white_noise));
     integral_velocity = integral_binwidth_velocity(freq_center/freq_conv, freq_0/freq_conv, binwidth=freq_binwidth/freq_conv);
+
     if verbosity>1: print(f'integral_velocity = {integral_velocity}');
     y = peak_spectrum(freq_center/freq_conv, freq_0=freq_0/freq_conv, P_DP=P_DP, a=0., b=noise_floor, binwidth=freq_binwidth/freq_conv) + white_noise;
     if verbosity>0:
@@ -130,6 +150,22 @@ def create_spectrum(
     # Create error array from std of white_noise
     std_white_noise = np.std(white_noise);
     y_err = np.full(nfreq, std_white_noise);
+
+    # Rebinning
+    if rebin>1:
+        # freq_center
+        freq_center = calc_rebin(rebin, freq_center, iserr=False)
+        # whire_noise
+        white_noise = calc_rebin(rebin, white_noise, iserr=False)
+        # v_noise
+        v_noise = calc_rebin(rebin, v_noise, iserr=False)
+        # integral_velocity
+        integral_velocity = calc_rebin(rebin, integral_velocity, iserr=False)
+        # y
+        y = calc_rebin(rebin, y, iserr=False)
+        # y_err
+        y_err = calc_rebin(rebin, y_err, iserr=True)
+        pass;
 
     if doPlot :
         # plot
@@ -246,13 +282,14 @@ def create_spectrum(
         ax.locator_params(axis='x', nbins=5);
         ax.locator_params(axis='y', nbins=5);
   
-        fig.savefig(f'{outname}');
+        if verbosity>0: print(f'save: {outdir}/{outname}');
+        fig.savefig(f'{outdir}/{outname}');
         pass;
  
     return freq_center/freq_conv, y, y_err;
 
 
-def plot(x,y,y_err=None,fit_x=None,fit_y=None,label='Simulated spectrum',fit_label='Fitted spectrum',xlabel='x',ylabel='y',outname='spectrum_fitted.pdf', texts=[]):
+def plot(x,y,y_err=None,fit_x=None,fit_y=None,label='Simulated spectrum',fit_label='Fitted spectrum',xlabel='x',ylabel='y',outdir='',outname='spectrum_fitted.pdf', texts=[]):
     # plot
     fig, axs = plt.subplots(1,1);
     fig.set_size_inches(8,6);
@@ -292,7 +329,8 @@ def plot(x,y,y_err=None,fit_x=None,fit_y=None,label='Simulated spectrum',fit_lab
             pass;
         pass;
  
-    fig.savefig(f'{outname}');
+    print(f'save: {outdir}/{outname}');
+    fig.savefig(f'{outdir}/{outname}');
     return 0;
     
 
@@ -304,7 +342,8 @@ def fit(freq_binwidth = 5.e+3, # spectrum frequency bin width
         time = 60., # [sec] 1min
         freq_0 = 20.e+9, # [Hz] peak position
         A_eff= (6.*1.e-2/2.)**2.*np.pi, # [m^2]
-        doPlot=True,outname='spectrum_fitted.pdf',verbosity=2):
+        rebin = 1,
+        doPlot=True,outdir='',outname='spectrum_fitted.pdf',verbosity=2):
     freq_conv = 1.e-9; # Hz --> GHz
 
     def fitfunc(pars,x) :
@@ -322,20 +361,22 @@ def fit(freq_binwidth = 5.e+3, # spectrum frequency bin width
 
     x,y,y_err=create_spectrum(
         chi  = chi,  T_noise = T_noise, gain = gain, A_eff= A_eff,
-        time = time, freq_0 = freq_0, freq_binwidth = freq_binwidth,
-        doPlot=doPlot, verbosity=verbosity, outname='create_'+outname,
+        time = time, freq_0 = freq_0, freq_binwidth = freq_binwidth, rebin=rebin,
+        doPlot=doPlot, verbosity=verbosity, outdir=outdir, outname='create_'+outname,
       );
     if verbosity>0: 
-        print('x=',x);
-        print('y=',y);
-        print('y_err',y_err);
+        print(f'x (size:{len(x)})={x}');
+        print(f'y (size:{len(y)})={y}');
+        print(f'y_err (size:{len(y_err)})={y_err}');
         pass;
 
     fitsquare = createfitsquare(x, y, func=fitfunc, nPar=n_pars, err=y_err);
-    #print('init_pars = ',init_pars);
-    #print('fitsquare return = ', fitsquare(*init_pars) );
-    result    = minuitminosfit(fitsquare, init=init_pars, fix=fix_pars, limit=limit_pars, errordef=errdef, verbosity=verbosity);
-    #print('result =',result);
+    if verbosity>0:
+        print('init_pars = ',init_pars);
+        print('fitsquare return = ', fitsquare(*init_pars) );
+        pass;
+    result = minuitminosfit(fitsquare, init=init_pars, fix=fix_pars, limit=limit_pars, errordef=errdef, verbosity=verbosity);
+    if verbosity>0: print('result =',result);
     pars = result[0][0];
     errs = result[0][3];
     freq0     = pars[0];
@@ -373,7 +414,7 @@ def fit(freq_binwidth = 5.e+3, # spectrum frequency bin width
                     r'$\chi^2$'+f' = {result[0][1]:.1f}',
                     r'$N_{\mathrm{dof}}$'+f' = {Ndof}',
                     ],
-                outname=outname);
+                outdir=outdir, outname=outname);
         pass;
 
     return result[0];
@@ -387,6 +428,9 @@ def main(isTest=True,
         freq_binwidths = None, # [Hz] frequency bin width list
         A_phi= 6., # [cm] effective aperture phi
         nLoop=1000,
+        rebin=1,
+        outdir = 'figure',
+        verbose = 0,
         outname = 'freq-bin-width_vs_fit-result.pdf',
         ):
     print(f'A_phi = {A_phi:.2f} cm');
@@ -406,8 +450,8 @@ def main(isTest=True,
         for n in range(nLoop):
             if n%50==0: print(f'n={n}');
             result = fit(freq_binwidth = freq_binwidth, # varied parameter
-                    chi=chi, T_noise=T_noise, gain=gain, time=time, freq_0=freq_0, A_eff=A_eff, # fixed parameters
-                    doPlot=True if n==0 else False,outname=f'spectrum_freqbinwidth{freq_binwidth*1.e-3:.1f}kHz_{outname}',verbosity=1 if n==0 else 0);
+                    chi=chi, T_noise=T_noise, gain=gain, time=time, freq_0=freq_0, A_eff=A_eff, rebin=rebin, # fixed parameters
+                    doPlot=True if n==0 else False,outdir=outdir, outname=f'spectrum_freqbinwidth{freq_binwidth*1.e-3:.1f}kHz_{outname}',verbosity=verbose+1 if n==0 else verbose);
             P_DP[i].append(result[0][1]);
             P_DP_err[i].append(result[3][1]);
             pass;
@@ -503,7 +547,9 @@ def main(isTest=True,
     ax.locator_params(axis='y', nbins=5);
  
 
-    fig.savefig('aho.pdf' if isTest else outname);
+    outfigname = 'aho.pdf' if isTest else f'{outdir}/{outname}';
+    if verbose>0: print(f'save: {outfigname}');
+    fig.savefig(outfigname);
 
     return 0;
 
@@ -516,7 +562,10 @@ if __name__=='__main__':
     time = 60.; # [sec] 1min
     freq_0 = 20.e+9; # [Hz] peak position
     A_phi= 6.; # [cm] effective aperture phi
+    rebin=1;
+    outdir = 'figure';
     outname = 'freq-bin-width_vs_fit-result.pdf';
+    verbose = 0;
 
     parser = argparse.ArgumentParser();
     parser.add_argument('--test', dest='test', type=int, default=(int)(isTest), help=f'Test or not (type=int, 0:False, 1:True | default: {isTest})');
@@ -529,7 +578,10 @@ if __name__=='__main__':
     parser.add_argument('-A', '--A_phi', dest='A_phi', default=A_phi, type=float, help=f'Phi of effective circular aperture [cm] (A_eff=(A_phi/2)**2*pi [cm^2]) (default: {A_phi} cm)');
     parser.add_argument('-f', '--freq_0', dest='freq_0', default=freq_0, type=float, help=f'Peak frequency of signal [Hz] (default: {freq_0:.0e} Hz)');
     parser.add_argument('-b', '--binwidths', dest='freq_binwidths', default=None, type=str, help=f'Frequency bin width list [Hz] (default: None | ex.) "1e+3,2e+3,3e+3"');
+    parser.add_argument('-r', '--rebin', dest='rebin', default=rebin, type=int, help=f'Number of rebinning for fitting (default: {rebin} bins)');
+    parser.add_argument('--outdir', default=outdir, help=f'output directory (default: {outdir})');
     parser.add_argument('-o', '--outname', default=outname, help=f'output filename (default: {outname})');
+    parser.add_argument('-v', '--verbose', default=verbose, type=int, help=f'Verbosity level (default: {verbose})');
     args = parser.parse_args();
     isTest = (args.test==1);
     nLoop  = args.nLoop;
@@ -541,7 +593,10 @@ if __name__=='__main__':
     A_phi  = args.A_phi
     freq_0 = args.freq_0;
     freq_binwidths = None if args.freq_binwidths is None else np.array([(float)(freq) for freq in args.freq_binwidths.split(',') ]);
+    rebin = args.rebin
+    outdir= args.outdir;
     outname= args.outname;
+    verbose= args.verbose;
 
     print(f'isTest  = {isTest}');
     print(f'nLoop  = {nLoop}');
@@ -552,8 +607,10 @@ if __name__=='__main__':
     print(f'A_phi   = {A_phi} [cm]');
     print(f'freq_0  = {freq_0*1.e-9:.0f} [GHz]');
     print(f'freq_binwidths  = {freq_binwidths} [Hz]');
+    print(f'rebin   = {rebin} [bins]');
+    print(f'outdir = {outdir}');
     print(f'outname = {outname}');
- 
+    print(f'verbose = {verbose}');
 
     main(isTest=isTest,
          chi  = chi,
@@ -564,6 +621,9 @@ if __name__=='__main__':
          freq_binwidths = freq_binwidths,
          A_phi= A_phi, 
          nLoop= nLoop,
+         rebin= rebin,
+         outdir = outdir,
          outname = outname,
+         verbose = verbose,
          );
     pass;
