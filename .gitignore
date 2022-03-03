@@ -24,6 +24,8 @@ figure/
 output/
 Y-factor_USB/data/
 Y-factor_USB/output/
+data_*/
+
 
 # data files
 *.dat
