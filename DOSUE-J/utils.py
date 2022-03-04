@@ -185,7 +185,9 @@ def plot_power(
         plt.yscale('log')
         pass
     plt.legend()
-    plt.savefig(f'{outdir}/power_{unit}_{suffix}.png')
+    savefile = f'{outdir}/power_{unit}_{suffix}.png'
+    print(f'save to {savefile}')
+    plt.savefig(savefile)
     if show:
         plt.show()
         pass
