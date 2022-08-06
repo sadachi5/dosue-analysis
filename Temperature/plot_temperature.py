@@ -94,20 +94,14 @@ def plot(channels, data_configs, xcolumn='time',
     if logx: ax.set_xscale('log')
     if logy: ax.set_yscale('log')
 
+    fig.set_tight_layout(True)
     fig.savefig(f'{outdir}/{outname}.png')
     return True
 
 
 if __name__=='__main__':
 
-    channels = [
-        {'column':'temp1', 'label':'CH1 2nd stage'},
-        {'column':'temp3', 'label':'CH3 1st stage'},
-        {'column':'temp2', 'label':'CH2 40K shield bottom'},
-        {'column':'temp4', 'label':'CH4 40K shield top'},
-        ]
-
-    data_columns = [
+    default_data_columns = [
          'unixtime', 'date', 'time', 
          'name1', 'temp1', 'raw1',
          'name2', 'temp2', 'raw2',
@@ -119,17 +113,42 @@ if __name__=='__main__':
          'name8', 'temp8', 'raw8',
          ]
 
+    outname='temperature_compare_20220806'
+    channels = [
+        {'column':'temp1', 'label':'CH1 2nd stage'},
+        {'column':'temp4', 'label':'CH4 2nd stage HEMT'},
+        {'column':'temp2', 'label':'CH2 1st stage'},
+        {'column':'temp3', 'label':'CH3 Wave-guide @ 40K'},
+        ]
     data_configs = [
-        {'dir':'/data/lakeshore218', 'columns':data_columns,
-            'start':'2022/08/02 16:23', 'stop':'2022/08/10', 
-            'label':'2nd cooling', 'ls':'-', 'lw':2},
-        {'dir':'/data/lakeshore218', 'columns':data_columns,
+        {'dir':'/data/lakeshore218', 'columns':default_data_columns,
+            'start':'2022/08/02 16:23', 'stop':'2022/08/03 12:00', 
+            'label':'2nd cooling', 'ls':'--', 'lw':2},
+        {'dir':'/data/lakeshore218', 'columns':default_data_columns,
+            'start':'2022/08/06 10:07', 'stop':'2022/08/12', 
+            'label':'3rd cooling', 'ls':'-', 'lw':2},
+        ]
+
+    '''
+    outname='temperature_compare_20220802'
+    channels = [
+        {'column':'temp1', 'label':'CH1 2nd stage'},
+        {'column':'temp3', 'label':'CH3 1st stage'},
+        {'column':'temp2', 'label':'CH2 40K shield bottom'},
+        {'column':'temp4', 'label':'CH4 40K shield top'},
+        ]
+    data_configs = [
+        {'dir':'/data/lakeshore218', 'columns':default_data_columns,
             'start':'2022/07/30 08:24', 'stop':'2022/07/31 08:00', 
             'label':'1st cooling', 'ls':'--', 'lw':2},
+        {'dir':'/data/lakeshore218', 'columns':default_data_columns,
+            'start':'2022/08/02 16:23', 'stop':'2022/08/10', 
+            'label':'2nd cooling', 'ls':'-', 'lw':2},
         ]
+    '''
 
     plot(channels=channels, data_configs=data_configs, 
             logy=True,
-            outdir='./figure', outname='temperature_compare')
+            outdir='./figure', outname=outname)
 
     pass
