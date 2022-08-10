@@ -23,8 +23,9 @@ data/
 figure/
 output/
 output*/
-Y-factor_USB/data/
-Y-factor_USB/output/
+*/data/
+*/output/
+*/figure/
 data_*/
 
 
