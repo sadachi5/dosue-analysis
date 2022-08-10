@@ -94,10 +94,10 @@ def create_spectrum(
         freq_binwidth = 5.e+3, # [Hz] frequency bin width
         rebin = 1,
         A_eff= (6.*1.e-2/2.)**2.*np.pi, # [m^2]
-        doPlot=True, outdir='', outname='spectrum.pdf', verbosity=1):
+        doPlot=True, outdir='', outname='spectrum.pdf', verbosity=1, freq_half_scale = 1e-6*10.):
 
     # Prepare frequency array
-    nfreq_half = (int)((freq_0*1e-6*10.)/freq_binwidth); # determine the fit range
+    nfreq_half = (int)((freq_0*freq_half_scale)/freq_binwidth); # determine the fit range
     nfreq      = nfreq_half * 2 + 1; # +1 is center bin
     freq_min_center  = freq_0 - nfreq_half*freq_binwidth; # determine the fit range
     freq_max_center  = freq_0 + nfreq_half*freq_binwidth; # determine the fit range
