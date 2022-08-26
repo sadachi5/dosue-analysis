@@ -20,7 +20,8 @@ def read_datafile(filename,
     
 
 def plot(channels, data_configs, xcolumn='time', 
-        logx=False, logy=False, 
+        logx=False, logy=False, xtype='sec', 
+        figsize = (16, 4), grid=True, 
         outdir='./figure', outname='aho'):
     utils.makedir(outdir)
     # check data_configs
@@ -68,7 +69,7 @@ def plot(channels, data_configs, xcolumn='time',
         pass
 
     # initialize figure
-    fig = plt.figure(figsize=(16, 4))
+    fig = plt.figure(figsize=figsize)
     fig.tight_layout()
     plt.rcParams["font.size"] = 16 # Nominal font size
     plt.subplots_adjust()
@@ -83,14 +84,20 @@ def plot(channels, data_configs, xcolumn='time',
             _label = f"{_dc_label}: {_c_label}"
             _lw = _dc['lw']
             _ls = _dc['ls']
-            ax.plot(_df[xcolumn], _df[_column], label=_label, lw=_lw, ls=_ls)
+            _x = _df[xcolumn]
+            if   xtype=='hour': _x = _x/3600.
+            elif xtype=='min': _x = _x/60.
+            ax.plot(_x, _df[_column], label=_label, lw=_lw, ls=_ls)
             pass
         pass
     if xcolumn == 'time':
-        ax.set_xlabel('Time [sec]')
+        if   xtype=='hour': ax.set_xlabel('Time [hour]')
+        elif xtype=='min' : ax.set_xlabel('Time [min]')
+        else:               ax.set_xlabel('Time [sec]')
         pass
     ax.set_ylabel('Temperature [K]')
     ax.legend(fontsize=10).get_frame().set_alpha(0)
+    ax.grid(grid)
     if logx: ax.set_xscale('log')
     if logy: ax.set_yscale('log')
 
@@ -101,6 +108,10 @@ def plot(channels, data_configs, xcolumn='time',
 
 if __name__=='__main__':
 
+    xcolumn = 'time'
+    xtype = 'sec'
+    figsize = (16, 4)
+    grid = True
     default_data_columns = [
          'unixtime', 'date', 'time', 
          'name1', 'temp1', 'raw1',
@@ -113,6 +124,37 @@ if __name__=='__main__':
          'name8', 'temp8', 'raw8',
          ]
 
+    '''
+    outname='temperature_single'
+    xtype = 'hour'
+    figsize = (12,4)
+    channels = [
+        {'column':'temp1', 'label':'4K stage'},
+        ]
+    data_configs = [
+        {'dir':'/data/lakeshore218', 'columns':default_data_columns,
+            'start':'2022/08/15 16:45', 'stop':'2022/08/16 10:00', 
+            'label':'', 'ls':'-', 'lw':2},
+        ]
+    '''
+
+    outname='temperature_compare'
+    channels = [
+        {'column':'temp1', 'label':'CH1 2nd stage'},
+        {'column':'temp2', 'label':'CH2 1st stage'},
+        {'column':'temp3', 'label':'CH3 Wave-guide @ 40K'},
+        {'column':'temp4', 'label':'CH4 40K shield top'},
+        ]
+    data_configs = [
+        {'dir':'/data/lakeshore218', 'columns':default_data_columns,
+            'start':'2022/08/15 16:45', 'stop':'2022/08/17', 
+            'label':'4th cooling (Wt 4K MLI)', 'ls':'--', 'lw':2},
+        {'dir':'/data/lakeshore218', 'columns':default_data_columns,
+            'start':'2022/08/24 08:48', 'stop':'2022/08/31 12:00', 
+            'label':'5th cooling (No 4K MLI)', 'ls':'-', 'lw':2},
+        ]
+
+    '''
     outname='temperature_compare_20220806'
     channels = [
         {'column':'temp1', 'label':'CH1 2nd stage'},
@@ -128,6 +170,7 @@ if __name__=='__main__':
             'start':'2022/08/06 10:07', 'stop':'2022/08/12', 
             'label':'3rd cooling', 'ls':'-', 'lw':2},
         ]
+    '''
 
     '''
     outname='temperature_compare_20220802'
@@ -148,7 +191,8 @@ if __name__=='__main__':
     '''
 
     plot(channels=channels, data_configs=data_configs, 
-            logy=True,
+            logy=True, xcolumn=xcolumn, xtype=xtype,
+            figsize=figsize, grid=grid,
             outdir='./figure', outname=outname)
 
     pass
