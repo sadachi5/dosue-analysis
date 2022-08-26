@@ -37,4 +37,6 @@ data_*/
 *.png
 
 
-
+# Exclude
+!Limit/limit_data/
+!Limit/limit_data/*
