@@ -1,5 +1,6 @@
 #!/bin/env python3
 import numpy as np
+import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -190,9 +191,68 @@ if __name__=='__main__':
         ]
     '''
 
-    plot(channels=channels, data_configs=data_configs, 
-            logy=True, xcolumn=xcolumn, xtype=xtype,
-            figsize=figsize, grid=grid,
-            outdir='./figure', outname=outname)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--channel_columns', nargs='*', default=None, 
+                            help=f'column names for channels (ex: "temp1 temp2 temp3 temp4")')
+    parser.add_argument('--channel_labels', nargs='*', default=None,
+                            help=f'labels for channels (ex: "CH1 CH2 CH3 CH4")')
+    parser.add_argument('--data_dir', default='/data/lakeshore218',
+                            help=f'temprature data directory (default: "/data/lakeshore218")')
+    parser.add_argument('--data_starts', nargs='*', default=None,
+                            help=f'start datetime list (ex: "\'2022/08/15 16:15\' \'\2022/08/24 08:48\'")')
+    parser.add_argument('--data_stops', nargs='*', default=None,
+                            help=f'stop datetime list (ex: "\'2022/08/17 12:00\' \'\2022/08/28 12:00\'")')
+    parser.add_argument('--data_labels', nargs='*', default=None,
+                            help=f'label list (ex: "\'4th cooling (Wt 4K MLI)\' \'5th cooling (No 4K MLI)\'")')
+    parser.add_argument('--data_linestyles', nargs='*', default=["--", "-"],
+                            help=f'line-style list (default: "\'--\' \'-\'")')
+    parser.add_argument('--data_linewidth', default=2, type=int, help=f'Line width (default: 2)')
+    parser.add_argument('--xcolumn', default=xcolumn, help=f'column name of time data (default: {xcolumn})')
+    parser.add_argument('--xtype', default=xtype, choices=['sec', 'min', 'hour'], help=f'time type (default: {xtype})')
+    parser.add_argument('--grid', action='store_true', default=False if grid else True, help=f'show grid (default: {grid})')
+    parser.add_argument('--logx', action='store_true', default=False, help=f'log x-axis (default: False)')
+    parser.add_argument('--logy', action='store_true', default=False, help=f'log y-axis (default: False)')
+    parser.add_argument('--figsizeW', default=figsize[0], type=int, help=f'Width of figure (default: {figsize[0]})')
+    parser.add_argument('--figsizeH', default=figsize[1], type=int, help=f'Height of figure (default: {figsize[1]})')
+    parser.add_argument('--outname', default=outname, help=f'output filename (default: {outname})')
+    parser.add_argument('-v', '--verbose', dest='verbose', default=0, type=int, help=f'Print out verbosity (default: 0)')
+    args = parser.parse_args()
 
+    if args.channel_columns is not None\
+        and args.channel_labels is not None:
+        channels = []
+        for _column, _label in zip(args.channel_columns, args.channel_labels):
+            channels.append({'column':_column, 'label':_label})
+            pass
+        pass
+
+    if args.data_starts is not None\
+        and args.data_stops is not None\
+        and args.data_labels is not None:
+        data_configs = []
+        for _start, _stop, _label, _ls \
+            in zip(args.data_starts, args.data_stops, 
+                    args.data_labels, args.data_linestyles):
+            data_configs.append({
+                'dir':args.data_dir,
+                'columns':default_data_columns,
+                'start':_start, 'stop':_stop,
+                'label':_label, 'ls':_ls,
+                'lw':args.line_width
+                })
+            pass
+        pass
+
+    xcolumn = args.xcolumn
+    xtype = args.xtype
+    grid = args.grid
+    logx = args.logx
+    logy = args.logy
+    figsize = (args.figsizeW, args.figsizeH)
+    outname = args.outname
+
+    plot(channels, data_configs, xcolumn=xcolumn, 
+        logx=logx, logy=logy, xtype=xtype, 
+        figsize=figsize, grid=grid, 
+        outdir='./figure', outname=outname);
     pass
