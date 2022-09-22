@@ -23,6 +23,7 @@ def read_datafile(filename,
 def plot(channels, data_configs, xcolumn='time', 
         logx=False, logy=False, xtype='sec', 
         figsize = (16, 4), grid=True, 
+        ymin=None, ymax=None,
         outdir='./figure', outname='aho'):
     utils.makedir(outdir)
     # check data_configs
@@ -101,6 +102,8 @@ def plot(channels, data_configs, xcolumn='time',
     ax.grid(grid)
     if logx: ax.set_xscale('log')
     if logy: ax.set_yscale('log')
+    if ymin is not None: ax.set_ylim(ymin=ymin)
+    if ymax is not None: ax.set_ylim(ymax=ymax)
 
     fig.set_tight_layout(True)
     fig.savefig(f'{outdir}/{outname}.png')
@@ -201,19 +204,22 @@ if __name__=='__main__':
     parser.add_argument('--data_starts', nargs='*', default=None,
                             help=f'start datetime list (ex: "\'2022/08/15 16:15\' \'\2022/08/24 08:48\'")')
     parser.add_argument('--data_stops', nargs='*', default=None,
-                            help=f'stop datetime list (ex: "\'2022/08/17 12:00\' \'\2022/08/28 12:00\'")')
+                            help=f'stop datetime list (ex: "\'2022/08/17 12:00\' \'\2022/08/26 12:00\'")')
     parser.add_argument('--data_labels', nargs='*', default=None,
                             help=f'label list (ex: "\'4th cooling (Wt 4K MLI)\' \'5th cooling (No 4K MLI)\'")')
     parser.add_argument('--data_linestyles', nargs='*', default=["--", "-"],
+                            choices=['', 'solid', 'dashed', 'dashdot', 'dotted'],
                             help=f'line-style list (default: "\'--\' \'-\'")')
-    parser.add_argument('--data_linewidth', default=2, type=int, help=f'Line width (default: 2)')
+    parser.add_argument('--data_linewidth', default=2, type=float, help=f'Line width (default: 2)')
     parser.add_argument('--xcolumn', default=xcolumn, help=f'column name of time data (default: {xcolumn})')
     parser.add_argument('--xtype', default=xtype, choices=['sec', 'min', 'hour'], help=f'time type (default: {xtype})')
     parser.add_argument('--grid', action='store_true', default=False if grid else True, help=f'show grid (default: {grid})')
     parser.add_argument('--logx', action='store_true', default=False, help=f'log x-axis (default: False)')
     parser.add_argument('--logy', action='store_true', default=False, help=f'log y-axis (default: False)')
-    parser.add_argument('--figsizeW', default=figsize[0], type=int, help=f'Width of figure (default: {figsize[0]})')
-    parser.add_argument('--figsizeH', default=figsize[1], type=int, help=f'Height of figure (default: {figsize[1]})')
+    parser.add_argument('--ymin', default=None, type=float, help=f'Y-axis min (default: None)')
+    parser.add_argument('--ymax', default=None, type=float, help=f'Y-axis max (default: None)')
+    parser.add_argument('--figsizeW', default=figsize[0], type=float, help=f'Width of figure (default: {figsize[0]})')
+    parser.add_argument('--figsizeH', default=figsize[1], type=float, help=f'Height of figure (default: {figsize[1]})')
     parser.add_argument('--outname', default=outname, help=f'output filename (default: {outname})')
     parser.add_argument('-v', '--verbose', dest='verbose', default=0, type=int, help=f'Print out verbosity (default: 0)')
     args = parser.parse_args()
@@ -238,7 +244,7 @@ if __name__=='__main__':
                 'columns':default_data_columns,
                 'start':_start, 'stop':_stop,
                 'label':_label, 'ls':_ls,
-                'lw':args.line_width
+                'lw':args.data_linewidth
                 })
             pass
         pass
@@ -248,11 +254,14 @@ if __name__=='__main__':
     grid = args.grid
     logx = args.logx
     logy = args.logy
+    ymin = args.ymin
+    ymax = args.ymax
     figsize = (args.figsizeW, args.figsizeH)
     outname = args.outname
 
     plot(channels, data_configs, xcolumn=xcolumn, 
         logx=logx, logy=logy, xtype=xtype, 
+        ymin=ymin, ymax=ymax,
         figsize=figsize, grid=grid, 
         outdir='./figure', outname=outname);
     pass
