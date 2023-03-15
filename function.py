@@ -70,12 +70,14 @@ def get_one_freq_data(
     dataprefix='scan_FFT_',
     datasuffix='GHz_span2.50MHz_rbw300Hz_2.0sec_1counts_12runs',
     binary_data=True,
-    doRebin=True, rebinmethod=0, binwidth=binwidth,
+    doRebin=True, rebinmethod=0, rbw=rbw, binwidth=binwidth,
     onlyAverage=True, cutEdges=True
     ):
 
     path = f"{datadir}/{dataprefix}{start}{datasuffix}"
-
+    fmin = float(start)*1e+9+250e+3
+    fmax=float(start)*1e+9+250e+3+2e+6
+    
     f_list = []
     W_list = []
     Werr_list = []
@@ -83,7 +85,7 @@ def get_one_freq_data(
         filesuffix = f'_{n}' if nRun > 1 else  ''
         _path = f'{path}{filesuffix}.dat'
         f, W, Werr = dat_to_array(_path, doRebin=doRebin, rebinmethod=rebinmethod, rbw=rbw, binwidth=binwidth, binary=binary_data)
-        if cutEdges: f, W, Werr = cut_data(f, W, Werr)
+        if cutEdges: f, W, Werr = cut_data(f, W, Werr, fmin=fmin, fmax=fmax)
         f_list.append(f)
         W_list.append(W)
         Werr_list.append(Werr)
@@ -113,7 +115,7 @@ def read_data(
     dataprefix='scan_FFT_',
     datasuffix='GHz_span2.50MHz_rbw300Hz_2.0sec_1counts_12runs',
     binary_data=True,
-    doRebin=True, rebinmethod=0, binwidth=binwidth,
+    doRebin=True, rebinmethod=0, rbw=rbw, binwidth=binwidth,
     onlyAverage=True, cutEdges=True, flatten=True
 ):
     all_freq_ave = []
@@ -136,7 +138,7 @@ def read_data(
             data = get_one_freq_data(start_str, nRun=nRun,
                                            datadir=datadir, dataprefix=dataprefix, datasuffix=datasuffix,
                                            binary_data=binary_data,
-                                           doRebin=doRebin, rebinmethod=rebinmethod, binwidth=binwidth,
+                                           doRebin=doRebin, rebinmethod=rebinmethod, rbw=rbw, binwidth=binwidth,
                                            onlyAverage=onlyAverage, cutEdges=cutEdges)
             if onlyAverage:
                 _f_ave, _W_ave, _Werr_ave = data[0], data[1], data[2]
@@ -215,12 +217,16 @@ def yfactor_analysis(freq, Wamb, WLN2, Wamb_err, WLN2_err, Tamb, rbw=rbw):
 
 # Data select for fit
 
-def cut_data(x, y, yerr=None):
+def cut_data(x, y, yerr=None, fmin=None, fmax=None):
     freq = []
     W = []
     Werr = []
+    if fmin is None or fmax is None:
+        fmin = x[0] + 250.e+3
+        fmax = x[0] + 250.e+3 + 2.e+6
+        pass
     for i, (a, b) in enumerate(zip(x, y)):
-        if a >= x[0] + 250.e+3 and a < x[0] + 250.e+3 + 2.e+6:
+        if a >= fmin and a < fmax:
             freq.append(a)
             W.append(b)
             if yerr is not None:
