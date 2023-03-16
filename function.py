@@ -18,7 +18,7 @@ check_freq = np.array([])
 
 # Read file
 
-def dat_to_array(path, doRebin=False, rebinmethod=0, rbw=rbw, binwidth=binwidth, binary=False):
+def dat_to_array(path, doRebin=False, rebinmethod=0, rbw=rbw, binwidth=binwidth, binary=False, returnDict=False):
     if binary:
         f = open(path, 'rb')
         freq = []
@@ -50,7 +50,10 @@ def dat_to_array(path, doRebin=False, rebinmethod=0, rbw=rbw, binwidth=binwidth,
         Werr = np.full(len(W), 0.)
         pass
 
-    return freq, W, Werr
+    if returnDict:
+        return {'freq':freq, 'W':W, 'Werr':Werr}
+    else:
+        return freq, W, Werr
 
 
 def csv_to_array(path):
