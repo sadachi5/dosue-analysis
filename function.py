@@ -77,7 +77,7 @@ def get_one_freq_data(
     path = f"{datadir}/{dataprefix}{start}{datasuffix}"
     fmin = float(start)*1e+9+250e+3
     fmax=float(start)*1e+9+250e+3+2e+6
-    
+
     f_list = []
     W_list = []
     Werr_list = []
@@ -471,8 +471,8 @@ def get_loop_index_each100MHz(freq_min, freq_max):
     # freq_min: GHz with 1 decimal place / ex) 10.0
     # freq_max: GHz with 1 decimal place / ex) 10.1
     # return: (int)i_start [Hz], (int)i_end [Hz], (int)interval [Hz]
-    i_start = int(freq_min*1e+9) # [Hz]
-    i_end = int(freq_max*1e+9) # [Hz]
+    i_start = int(round(freq_min*1e+9)) # [Hz]
+    i_end = int(round(freq_max*1e+9)) # [Hz]
     interval = int(1e+8) # 100MHz [Hz]
     return i_start, i_end, interval
 
