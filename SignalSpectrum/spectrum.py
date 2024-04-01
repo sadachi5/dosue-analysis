@@ -65,7 +65,8 @@ def calc_P_DP(chi, A_eff, rho_CDM=0.39, alpha=1./np.sqrt(3.)):
 
 # T [K] / d_nu [Hz]
 def calc_noise(T, d_nu, t):
-    return np.sqrt(2.) * k_B*T*d_nu / np.sqrt(d_nu * t); # J*Hz = J/sec = W
+    dP = np.sqrt(2.) * k_B*T*d_nu / np.sqrt(d_nu * t); # J*Hz = J/sec = W
+    return dP;
 
 def calc_rebin(rebin, y, iserr=False):
     if rebin>1:
@@ -94,6 +95,7 @@ def create_spectrum(
         freq_binwidth = 5.e+3, # [Hz] frequency bin width
         rebin = 1,
         A_eff= (6.*1.e-2/2.)**2.*np.pi, # [m^2]
+        noise_offset =False, # add noise offset or not
         doPlot=True, outdir='', outname='spectrum.pdf', verbosity=1, freq_half_scale = 1e-6*10.):
 
     # Prepare frequency array
@@ -139,9 +141,10 @@ def create_spectrum(
     white_noise = np.random.normal(0., noise, nfreq);
     v_noise = np.sqrt(abs(white_noise));
     integral_velocity = integral_binwidth_velocity(freq_center/freq_conv, freq_0/freq_conv, binwidth=freq_binwidth/freq_conv);
-
+    
     if verbosity>1: print(f'integral_velocity = {integral_velocity}');
-    y = peak_spectrum(freq_center/freq_conv, freq_0=freq_0/freq_conv, P_DP=P_DP, a=0., b=noise_floor, binwidth=freq_binwidth/freq_conv) + white_noise;
+    y = peak_spectrum(freq_center/freq_conv, freq_0=freq_0/freq_conv, P_DP=P_DP, a=0., b=noise_floor, binwidth=freq_binwidth/freq_conv) + white_noise + (noise_floor if noise_offset else 0.);
+    y_no_noise = peak_spectrum(freq_center/freq_conv, freq_0=freq_0/freq_conv, P_DP=P_DP, a=0., b=noise_floor, binwidth=freq_binwidth/freq_conv);
     if verbosity>0:
         print('freq_center', freq_center);
         print('power', y);
@@ -286,7 +289,7 @@ def create_spectrum(
         fig.savefig(f'{outdir}/{outname}');
         pass;
  
-    return freq_center/freq_conv, y, y_err;
+    return freq_center/freq_conv, y, y_err, y_no_noise
 
 
 def plot(x,y,y_err=None,fit_x=None,fit_y=None,label='Simulated spectrum',fit_label='Fitted spectrum',xlabel='x',ylabel='y',outdir='',outname='spectrum_fitted.pdf', texts=[]):
@@ -359,7 +362,7 @@ def fit(freq_binwidth = 5.e+3, # spectrum frequency bin width
     n_pars = len(init_pars);
     errdef = 1;
 
-    x,y,y_err=create_spectrum(
+    x,y,y_err, tmp =create_spectrum(
         chi  = chi,  T_noise = T_noise, gain = gain, A_eff= A_eff,
         time = time, freq_0 = freq_0, freq_binwidth = freq_binwidth, rebin=rebin,
         doPlot=doPlot, verbosity=verbosity, outdir=outdir, outname='create_'+outname,
