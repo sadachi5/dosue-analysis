@@ -2,6 +2,8 @@ import numpy as np
 import csv
 import pandas as pd
 import struct
+from scipy import interpolate
+from matplotlib import pyplot as plt
 
 # Constants
 v_c = 220.e+3 # [m/sec] speed of solar system
@@ -12,6 +14,9 @@ rbw = 3.e+2 # [Hz]
 binwidth = 2.e+3 # [Hz]
 TLN2 = 77 # [K]
 nrun = 12 # nRun in search measurement
+
+colors = [ [ plt.get_cmap("tab10")(i)[:3] ] for i in range(10) ] * 10
+#colors = [ [[0, 0.5, 0.5]] ] * 100
 
 check_freq = np.array([])
 
@@ -190,6 +195,139 @@ def original_signal_to_array(path, n_data=nrun, verbose=0):
         print(f'W (nominal data, size={len(W)}) = ',W)
         pass
     return freq, W, W_array
+
+# start_freq, stop_freq, npoints are only used in OneColumn type
+# channel is only used in VNA type
+def read_csv(filename, csvType='VNA', start_freq=None, stop_freq=None, npoints=None, channel=None):
+    
+    freq = [] # frequency list [GHz]
+    power = [] # power list  [mW]
+    
+    f = open(filename, 'r');
+    if csvType=='TwoColumn':
+        fin = list( csv.reader(f, delimiter=' ') )
+    else:
+        fin = list(csv.reader(f))
+    #print(fin)  #リストの中身を出力
+    isData = False
+    
+    if csvType=='Anritsu': # Anritsu : NOTE: only for RMS detection
+        
+        start_freq = 0
+        stop_freq = 0
+        npoints = 0
+        for line in fin:
+            if len(line)==0 : continue
+            first = line[0].strip()
+            # Search for frequency range
+            if first == 'Trace-A':
+                start_freq = int(line[1])
+                stop_freq  = int(line[2])
+                continue
+            # Search for npoints
+            if first == 'RMS':
+                npoints = int(line[1])
+                continue
+            # Search for data starting point (Anritsu: Wave Data)
+            if first.startswith('Wave Data'):
+                isData = True
+                continue
+            # Get data
+            if isData:
+                power.append(10 ** (float(line[0])*0.1)) # dBm --> mW
+                pass
+            pass
+        freq = np.linspace(start_freq,stop_freq,npoints) * 1.e-9 # Hz --> GHz
+            
+    elif csvType=='VNA' : # VNA
+        
+        columns = None
+        _freq_list = []
+        _power_list = []
+        _freq = []
+        _power = []
+        for line in fin:
+            if len(line)==0 : continue
+            first = line[0].split()[0].strip()
+            # Search for data starting point (VNA: BEGIN)
+            #print(f'first = {first}')
+            if first == 'BEGIN':
+                isData = True
+                _freq = []
+                _power = []
+                continue
+            elif first == 'END':
+                isData = False
+                _freq_list.append( _freq )
+                _power_list.append( _power )
+                columns = None
+                pass
+            # Get data
+            if isData:
+                if columns is None:
+                    columns = line
+                    continue
+                _freq.append( float(line[0]) * 1.e-9 ) # Hz --> GHz
+                _power.append(10 ** (float(line[1])*0.1)) # dB --> ratio
+                pass
+            pass
+        
+        freq = _freq_list[channel]
+        power = _power_list[channel]
+ 
+    elif csvType=='Keysight' : # Keysight
+        
+        for line in fin:
+            if len(line)==0 : continue
+            first = line.strip()
+            # Search for data starting point (Keysight: DATA)
+            #print(f'first = {first}')
+            if first == 'DATA':
+                isData = True
+                continue
+            #isData = True # All lines are data
+            # Get data
+            if isData:
+                freq.append( float(line[0]) * 1.e-9 ) # Hz --> GHz
+                power.append(10 ** (float(line[1])*0.1)) # dBm --> mW
+                pass
+            pass
+        
+    elif csvType=='TwoColumn' : # Hz, dBm
+        
+        for line in fin:
+            if len(line)==0 : continue
+            first = line[0].strip()
+            #print(f'first = {first}')
+            if first[0]=='#':
+                # skip line
+                continue
+            # Get data
+            freq.append( float(line[0]) * 1.e-9 ) # Hz --> GHz
+            power.append(10 ** (float(line[1])*0.1)) # dBm --> mW
+            pass
+        
+    elif csvType=='OneColumn' : # dBm
+        
+        for line in fin:
+            if len(line)==0 : continue
+            first = line[0].strip()
+            #print(f'first = {first}')
+            if first[0]=='#':
+                # skip line
+                continue
+            # Get data
+            power.append(10 ** (float(line[0])*0.1)) # dBm --> mW
+            pass
+        if (start_freq is None) or (stop_freq is None) or (npoints is None):
+            print('Error! There is no arguments for frequency information (start_freq, stop_freq, npoints).')
+            print('Error! Please specify them!')
+            return None
+        freq = np.linspace(start_freq,stop_freq,npoints) * 1.e-9 # Hz --> GHz
+        
+        pass
+    
+    return np.array(freq), np.array(power)
 
 
 # Y-factor method
@@ -387,6 +525,12 @@ def rebin_hist(bins, hist, rebin, histerr=None):
     
     return bins_new, hist_new, histerr_new 
 
+def interpolate1D(x_original, y_original, x_new=None):
+    interpolate_func = interpolate.interp1d(x_original, y_original, kind='linear')
+    if x_new is None:
+        return interpolate_func
+    else:
+        return interpolate_func(x_new)
 
 # Misc.
 
@@ -570,6 +714,26 @@ def listup_low_plocal(freq, p_local, lowP = 1.e-5):
 
     return freq_lowP, p_local_lowP
 
+# Get x0 at y0 using linear interpolation
+def getX(x, y, y0, verbose=0):
+    x0 = []
+    if verbose > 0:
+        func.print_list(x)
+        func.print_list(y)
+        pass
+    for i in range(len(x)-1):
+        _x1 = x[i]
+        _x2 = x[i+1]
+        _y1 = y[i]
+        _y2 = y[i+1]
+        # Check y0 is between _y1 and _y2
+        if (_y1 - y0)*(_y2 - y0) <= 0.:
+            _x0 = ( _x1 * (_y2-y0) + _x2 * (y0-_y1) )/(_y2-_y1)
+            x0.append(_x0)
+            pass
+        pass
+    return x0
+
 import inspect
 def get_var_name(var, back_vars=None):
     name = ''
@@ -586,7 +750,12 @@ def get_var_name(var, back_vars=None):
 
 def print_list(var, varname=''):
     if isinstance(var, np.ndarray): size = var.shape
-    else: size = len(var)
+    else: 
+        if hasattr(var, "__iter__"):
+            size = len(var)
+        else:
+            size = 0
+            pass
     if varname != '':
         print(f'{varname} (size={size}) = {var}')
     else:
@@ -597,6 +766,26 @@ def print_list(var, varname=''):
         pass
     pass
 
+def print_var(var, varname=''):
+    if varname != '':
+        print(f'{varname} = {var}')
+    else:
+        #back_vars = inspect.currentframe().f_back.f_globals
+        #back_vars.update( inspect.currentframe().f_back.f_locals )
+        #varname = get_var_name(var, back_vars)
+        varname = locals()
+        print(f'{varname} = {var}')
+        pass
+    pass
+    
 def isNoneAny_array(array):
     isNone = [ _x is None for _x in array ]
     return np.any(isNone)
+    
+    
+#def convert_to_array(*lists):
+#    new_list = []
+#    for _l in lists:
+#        new_list.append( np.array(_l) )
+#        pass
+#    return new_list

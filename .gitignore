@@ -23,9 +23,13 @@ data/
 figure/
 output/
 output*/
+input/
+input*/
 */data/
 */output/
 */figure/
+*/input/
+*/input*/
 data_*/
 
 
@@ -35,7 +39,8 @@ data_*/
 *.out
 *.pdf
 *.png
-
+*.csv
+*.txt
 
 # Exclude
 !Limit/limit_data/

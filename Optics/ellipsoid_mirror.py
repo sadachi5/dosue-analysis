@@ -8,18 +8,62 @@ from scipy.constants import c
 
 mm = 1e-3 # m
 cm = 1e-2 # m
+kHz = 1e+3 # Hz
+MHz = 1e+6 # Hz
 GHz = 1e+9 # Hz
 
 
 def calc_wavelength(freq):
-    return c/freq
+    return np.divide(c, freq)
 
-def calc_z_c(w, wavelength):
-    return np.pi * w * w / wavelength
+def calc_freq(wavelength):
+    return np.divide(c, wavelength)
 
-def calc_R(d, w, wavelength):
-    z_c = calc_z_c(w, wavelength)
-    return d + z_c**2 / d
+def calc_z_c(w0, wavelength):
+    return np.pi * w0 * w0 / wavelength
+
+def calc_R(z, w0, wavelength):
+    z_c = calc_z_c(w0, wavelength)
+    return z + z_c * z_c / z
+
+def calc_beamwaist(z, w0, wavelength):
+    z_c = calc_z_c(w0, wavelength)
+    return w0 * np.sqrt( 1. + np.power(z/z_c, 2.) )
+
+def calc_beamwaist0(w, R, wavelength):
+    alpha = w*w/R * np.pi/wavelength
+    return w / np.sqrt(1. + np.power(alpha, 2. ))
+
+def calc_waist_distance(w, R, wavelength):
+    alpha = w*w/R * np.pi/wavelength
+    return R / (1. + np.power(alpha, -2.) )
+
+def calc_distance_from_beamsize(w, w0, wavelength):
+    z_c = calc_z_c(w0, wavelength)
+    return z_c * np.sqrt( np.power(w/w0, 2.) - 1 )
+
+# waist (1/e beam size in oneside) --> Power's FWHM (1/2  size in bothside)
+def waist_to_halfwaist(w):
+    # E-field waist --> Power (= |E|^2) waist
+    power_waist = w/np.sqrt(2.)
+    # 1/e waist --> 1/2 waist
+    # exp(-(x/power_waist)^2) = 2**(-(x/waist_3dB)^2)
+    waist_3dB = power_waist * np.sqrt( np.log(2.) )
+    return waist_3dB
+
+def fwhm_to_beamsize(fwhm):
+    # 1/2 for bothside --> 1/e for oneside
+    beamsize = fwhm / 2. / np.sqrt( np.log(2.) )
+    return beamsize
+
+def farfield_angle(w0, wavelength):
+    return wavelength / (np.pi * w0)
+
+def calc_edgeTaper(r, w):
+    return np.exp(-2.*r*r/(w*w))
+
+def calc_radius_from_ET(ET, w):
+    return w*np.sqrt( -1./2. * np.log(ET) ) 
 
 # m base
 # d1/z_c should be larger than w_out/w_in=m.
@@ -60,7 +104,7 @@ def calc_R1R2d2(
     R1 = calc_R(d1, w_in, wavelength)
 
     # calculate f
-    if w_in == w_out :
+    if f0fix :
         f = z_c * (1.+(d1/z_c)**2.)/(2.*d1/z_c)
         f_p = f_m = f
     else:
@@ -102,13 +146,13 @@ def calc_R1R2d2(
         #_d2_mm = 1/2.*(R2_m - np.sqrt( R2_m**2 - 4.*m**4*z_c**2) )
 
         if verbose > 0:
-            print(f'd2_p = {d2_p/cm:.1f} cm')
-            print(f'd2_m = {d2_m/cm:.1f} cm')
+            print(f'd2_p = {d2_p:.1f} m')
+            print(f'd2_m = {d2_m:.1f} m')
 
-            print(f'd2_R2p_p from R2_p = {d2_R2p_p/cm:.1f} cm')
-            print(f'd2_R2m_p from R2_m = {d2_R2m_p/cm:.1f} cm')
-            print(f'd2_R2p_m from R2_p = {d2_R2p_m/cm:.1f} cm')
-            print(f'd2_R2m_m from R2_m = {d2_R2m_m/cm:.1f} cm')
+            print(f'd2_R2p_p from R2_p = {d2_R2p_p:.1f} m')
+            print(f'd2_R2m_p from R2_m = {d2_R2m_p:.1f} m')
+            print(f'd2_R2p_m from R2_p = {d2_R2p_m:.1f} m')
+            print(f'd2_R2m_m from R2_m = {d2_R2m_m:.1f} m')
  
             #print(f'_d2_pp = {_d2_pp/cm:.1f} cm')
             #print(f'_d2_pm = {_d2_pm/cm:.1f} cm')
@@ -125,9 +169,12 @@ def calc_R1R2d2(
             pass
         pass
 
+    result_dict = {
+        'd1':d1, 'R1':R1, 'R2_p':R2_p, 'R2_m':R2_m, 'd2_p':d2_p, 'd2_m':d2_m
+    }
+    
+    return result_dict
 
-
-    return (d1, d2_p, d2_p), (d1, d2_m, d2_m)
 
 def scan(
         w_in_min=3*mm, w_in_max=4*mm, w_in_scan=1*mm,
@@ -139,57 +186,47 @@ def scan(
     d1_list = np.arange(d1_min, d1_max+d1_scan, d1_scan)
 
     X, Y = np.meshgrid(w_in_list, d1_list)
-    d1 = calc_R1R2d2(w_in=X, d1=Y, w_out=w_out, verbose=0)[0][0]
-    d2_p = calc_R1R2d2(w_in=X, d1=Y, w_out=w_out, verbose=0)[0][2]
-    d2_m = calc_R1R2d2(w_in=X, d1=Y, w_out=w_out, verbose=0)[1][2]
-
-    #for w_in, d1 in xy:
-    #    ret = calc_R1R2d2(w_in=w_in, d1=d1, verbose=0)
-    #    ret_pos = ret[0]
-    #    R1 = ret_pos[0]
-    #    R2_p = ret_pos[1]
-    #    d2_p = ret_pos[2]
-    #    pass
-
+    results = calc_R1R2d2(w_in=X, d1=Y, w_out=w_out, verbose=0)
+    #print(results)
+    #print(results['d1'])
+    d1 = results['d1']
+    d2_p = results['d2_p']
+    d2_m = results['d2_m']
+    
     Xcm = X/cm
     Ycm = Y/cm
     d1cm = d1/cm
     d2_p_cm = d2_p/cm
     d2_m_cm = d2_m/cm
 
-    plt.pcolormesh(Xcm, Ycm, d2_p, cmap='hsv', vmin=0, vmax=100)
+    plt.pcolormesh(Xcm, Ycm, d2_p, cmap='gist_rainbow', vmin=0, vmax=15)
     plt.xlabel('$w_{\mathrm{in}}$ [cm]')
     plt.ylabel('$d_{1}$ [cm]')
     plt.title('$d2_p$ [m]')
-    plt.colorbar(orientation='vertical')
+    plt.colorbar(orientation='vertical').set_label('$d2_p$ [m]')
     plt.savefig('d2_p.pdf')
-    plt.close()
+    plt.tight_layout()
+    plt.show()
 
-    plt.pcolor(Xcm, Ycm, d2_m, cmap='hsv', vmin=0, vmax=100)
+    plt.pcolor(Xcm, Ycm, d2_m, cmap='gist_rainbow', vmin=0, vmax=15)
     plt.xlabel('$w_{\mathrm{in}}$ [cm]')
     plt.ylabel('$d_{1}$ [cm]')
     plt.title('$d2_m$ [m]')
-    plt.colorbar(orientation='vertical')
+    plt.colorbar(orientation='vertical').set_label('$d2_m$ [m]')
     plt.savefig('d2_m.pdf')
-    plt.close()
+    plt.tight_layout()
+    plt.show()
 
-    plt.plot(Y, d2_p, label = 'd2_p')
-    plt.plot(Y, d2_m, label = 'd2_m')
+    plt.plot(Y[0], d2_p[0], label = 'd2_p')
+    plt.plot(Y[0], d2_m[0], label = 'd2_m')
     plt.ylim(0,100)
+    plt.legend(frameon=False)
     plt.grid(True)
     plt.savefig('d2_1D.pdf')
-    plt.close()
+    plt.tight_layout()
+    plt.show()
+    
     return 0
-
-
-def calc_R(z, w, wavelength):
-    z_c = calc_z_c(w, wavelength)
-    return z + z_c * z_c / z
-
-def calc_waist(z, w0, wavelength):
-    z_c = calc_z_c(w, wavelength)
-    return w0 * np.sqrt( 1. + np.power(z/z_c, 2.) )
-
 
 
 
