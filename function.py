@@ -1,5 +1,6 @@
 import numpy as np
 import csv
+import re
 import pandas as pd
 import struct
 from scipy import interpolate
@@ -197,8 +198,9 @@ def original_signal_to_array(path, n_data=nrun, verbose=0):
     return freq, W, W_array
 
 # start_freq, stop_freq, npoints are only used in OneColumn type
-# channel is only used in VNA type
-def read_csv(filename, csvType='VNA', start_freq=None, stop_freq=None, npoints=None, channel=None):
+# nchannel is only used in VNA type: Please choose index of a dataset wrapped between BEGIN and END (default 0)
+# ncolumn is only used in VNA type: Please choose index of a column when multiple traces were measured (default 1)
+def read_csv(filename, csvType='VNA', start_freq=None, stop_freq=None, npoints=None, nchannel=0, ncolumn=1):
     
     freq = [] # frequency list [GHz]
     power = [] # power list  [mW]
@@ -268,12 +270,12 @@ def read_csv(filename, csvType='VNA', start_freq=None, stop_freq=None, npoints=N
                     columns = line
                     continue
                 _freq.append( float(line[0]) * 1.e-9 ) # Hz --> GHz
-                _power.append(10 ** (float(line[1])*0.1)) # dB --> ratio
+                _power.append(10 ** (float(line[ncolumn])*0.1)) # dB --> ratio
                 pass
             pass
         
-        freq = _freq_list[channel]
-        power = _power_list[channel]
+        freq = _freq_list[nchannel]
+        power = _power_list[nchannel]
  
     elif csvType=='Keysight' : # Keysight
         
@@ -328,6 +330,59 @@ def read_csv(filename, csvType='VNA', start_freq=None, stop_freq=None, npoints=N
         pass
     
     return np.array(freq), np.array(power)
+
+
+def read_HFSS_data(inputdir, inputfile_list=[], inputkey_list=[], verbose=1):
+    # Read the data to data_list (pandas list)
+    data_list = []
+    if len(inputkey_list) < len(inputfile_list):
+        print('WARNING! The key list did not given correctly. inputkey_list = {inputkey_list}')
+        print('WARNING! The first column will be choosen for ouptut.')
+        print('WARNING! The input key should be given without a unit.')
+        inputkey_list = [''] * len(inputfile_list)
+        pass
+
+    for _key, _file in zip(inputkey_list, inputfile_list):
+        _d = csv_to_array(f'{inputdir}/{_file}')
+        # Rename Keys  (Remove unit)
+        _keys = list(_d.keys())
+        for _k in _keys:
+            _new_key = re.sub('\[.*\]', '', _k)
+            _new_key = _new_key.strip()
+            if verbose > 0:
+                print(_new_key)
+                pass
+            _d[_new_key] = _d.pop(_k)
+            pass
+        # Search for dB key
+        _new_keys = list(_d.keys())
+        _dB_keys = []
+        for _k in _new_keys:
+            if _k.startswith('dB'):
+                _dB_keys.append(_k)
+                pass
+            pass
+        if len(_dB_keys) == 1 and _key=='':
+            _d['Power'] = _d.pop(_dB_keys[0])
+        elif _key in _dB_keys:
+            _d['Power'] = _d.pop(_key)
+        else:
+            print(f'WARNING!!: There are several power columns but inputkey_list did not given!')
+            print(f'WARNING!!: keys = {_dB_keys}')
+            print(f'WARNING!!: inputkey_list = {inputkey_list}')
+            print(f'WARNING!!: Set Power = Power0 = {_dB_keys[0]}')
+            _d['Power'] = _d.pop(_dB_keys[0])
+            pass
+
+        data_list.append(pd.DataFrame(_d))
+        pass
+    if verbose > 0:
+        print(data_list[0])
+        print(data_list[0].keys())
+        print(data_list[0]['Freq'])
+        pass
+    
+    return data_list
 
 
 # Y-factor method
